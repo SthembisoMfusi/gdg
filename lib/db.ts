@@ -1,5 +1,5 @@
 import { getSql, cleanEmptyStrings } from './neon';
-import { executeQuery, executeQueryOne } from './db-queries';
+import { executeQuery, executeQueryOne, executeNonQuery } from './db-queries';
 import bcrypt from 'bcryptjs';
 
 export interface Speaker {
@@ -96,7 +96,7 @@ export const speakerQueries = {
     // Clean empty strings to NULL
     const bio = cleanEmptyStrings(speaker.bio);
     
-    await client.query(`
+    await executeNonQuery(`
       INSERT INTO speakers (
         id, name, title, company, bio, image, twitter, linkedin, github,
         rating, review_count, created_at, updated_at
@@ -134,7 +134,7 @@ export const speakerQueries = {
       values.push(now);
       values.push(id);
       
-      await client.query(`
+      await executeNonQuery(`
         UPDATE speakers 
         SET ${fields.join(', ')}
         WHERE id = $${paramIndex}
@@ -144,7 +144,7 @@ export const speakerQueries = {
 
   delete: async (id: string): Promise<void> => {
     const client = getSql();
-    await client.query('DELETE FROM speakers WHERE id = $1', [id]);
+    await executeNonQuery('DELETE FROM speakers WHERE id = $1', [id]);
   }
 }
 
@@ -197,7 +197,7 @@ export const sessionQueries = {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
     const now = new Date().toISOString();
     
-    await client.query(`
+    await executeNonQuery(`
       INSERT INTO sessions (
         id, title, description, start_time, end_time, track, tags, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -207,7 +207,7 @@ export const sessionQueries = {
     // Insert session-speaker relationships
     if (session.speakerIds && session.speakerIds.length > 0) {
       for (const speakerId of session.speakerIds) {
-        await client.query(`
+        await executeNonQuery(`
           INSERT INTO session_speakers (session_id, speaker_id)
           VALUES ($1, $2)
         `, [id, speakerId]);
@@ -246,7 +246,7 @@ export const sessionQueries = {
         values.push(now);
         values.push(id);
         
-        await client.query(`
+        await executeNonQuery(`
           UPDATE sessions 
           SET ${fields.join(', ')}
           WHERE id = $${paramIndex}
@@ -256,11 +256,11 @@ export const sessionQueries = {
     
     // Update speaker relationships if provided
     if (speakerIds !== undefined) {
-      await client.query('DELETE FROM session_speakers WHERE session_id = $1', [id]);
+      await executeNonQuery('DELETE FROM session_speakers WHERE session_id = $1', [id]);
       
       if (speakerIds.length > 0) {
         for (const speakerId of speakerIds) {
-          await client.query(`
+          await executeNonQuery(`
             INSERT INTO session_speakers (session_id, speaker_id)
             VALUES ($1, $2)
           `, [id, speakerId]);
@@ -271,15 +271,14 @@ export const sessionQueries = {
 
   delete: async (id: string): Promise<void> => {
     const client = getSql();
-    await client.query('DELETE FROM sessions WHERE id = $1', [id]);
+    await executeNonQuery('DELETE FROM sessions WHERE id = $1', [id]);
   }
 }
 
 // Event operations
 export const eventQueries = {
   get: async (): Promise<Event | undefined> => {
-    const client = getSql();
-    const rows = await client.query(`
+    const rows = await executeQuery<Event>(`
       SELECT 
         id, name, description, date, location, image,
         created_at as "createdAt", updated_at as "updatedAt"
@@ -294,7 +293,7 @@ export const eventQueries = {
     const id = Date.now().toString();
     const now = new Date().toISOString();
     
-    await client.query(`
+    await executeNonQuery(`
       INSERT INTO events (id, name, description, date, location, image, created_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `, [id, event.name, event.description, event.date, event.location, event.image, now, now]);
@@ -322,7 +321,7 @@ export const eventQueries = {
       values.push(now);
       values.push(id);
       
-      await client.query(`
+      await executeNonQuery(`
         UPDATE events 
         SET ${fields.join(', ')}
         WHERE id = $${paramIndex}
@@ -334,8 +333,7 @@ export const eventQueries = {
 // Review operations
 export const reviewQueries = {
   getAll: async (): Promise<Review[]> => {
-    const client = getSql();
-    const rows = await client.query(`
+    const rows = await executeQuery<Review>(`
       SELECT 
         id, speaker_id as "speakerId", session_id as "sessionId",
         user_name as "userName", user_email as "userEmail", user_avatar as "userAvatar",
@@ -343,12 +341,11 @@ export const reviewQueries = {
       FROM reviews
       ORDER BY created_at DESC
     `);
-    return rows as Review[];
+    return rows;
   },
 
   getBySpeakerId: async (speakerId: string): Promise<Review[]> => {
-    const client = getSql();
-    const rows = await client.query(`
+    const rows = await executeQuery<Review>(`
       SELECT 
         id, speaker_id as "speakerId", session_id as "sessionId",
         user_name as "userName", user_email as "userEmail", user_avatar as "userAvatar",
@@ -357,12 +354,11 @@ export const reviewQueries = {
       WHERE speaker_id = $1
       ORDER BY created_at DESC
     `, [speakerId]);
-    return rows as Review[];
+    return rows;
   },
 
   getBySessionId: async (sessionId: string): Promise<Review[]> => {
-    const client = getSql();
-    const rows = await client.query(`
+    const rows = await executeQuery<Review>(`
       SELECT 
         id, speaker_id as "speakerId", session_id as "sessionId",
         user_name as "userName", user_email as "userEmail", user_avatar as "userAvatar",
@@ -371,7 +367,7 @@ export const reviewQueries = {
       WHERE session_id = $1
       ORDER BY created_at DESC
     `, [sessionId]);
-    return rows as Review[];
+    return rows;
   },
 
   create: async (review: Omit<Review, 'id' | 'createdAt'>): Promise<Review> => {
@@ -379,7 +375,7 @@ export const reviewQueries = {
     const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
     const now = new Date().toISOString();
     
-    await client.query(`
+    await executeNonQuery(`
       INSERT INTO reviews (
         id, speaker_id, session_id, user_name, user_email, user_avatar,
         rating, comment, date, created_at
@@ -392,7 +388,7 @@ export const reviewQueries = {
     
     // Update speaker rating if this is a speaker review
     if (review.speakerId) {
-      await client.query(`
+      await executeNonQuery(`
         UPDATE speakers 
         SET rating = (
           SELECT ROUND(AVG(rating)::numeric, 1)
@@ -415,16 +411,16 @@ export const reviewQueries = {
     const client = getSql();
     
     // Get the review first to update speaker ratings
-    const rows = await client.query(`
+    const rows = await executeQuery<any>(`
       SELECT speaker_id FROM reviews WHERE id = $1
     `, [id]);
     const speakerId = rows[0]?.speaker_id;
     
-    await client.query('DELETE FROM reviews WHERE id = $1', [id]);
+    await executeNonQuery('DELETE FROM reviews WHERE id = $1', [id]);
     
     // Update speaker rating if this was a speaker review
     if (speakerId) {
-      await client.query(`
+      await executeNonQuery(`
         UPDATE speakers 
         SET rating = COALESCE((
           SELECT ROUND(AVG(rating)::numeric, 1)
@@ -446,14 +442,14 @@ export const reviewQueries = {
 export const adminQueries = {
   getByUsername: async (username: string): Promise<Admin | undefined> => {
     const client = getSql();
-    const rows = await client.query(`
+    const rows = await executeQuery<Admin>(`
       SELECT 
         id, username, password_hash as "passwordHash",
         created_at as "createdAt"
       FROM admins
       WHERE username = $1
     `, [username]);
-    return rows[0] as Admin | undefined;
+    return rows[0];
   },
 
   create: async (admin: Omit<Admin, 'id' | 'createdAt'>): Promise<Admin> => {
@@ -461,7 +457,7 @@ export const adminQueries = {
     const id = Date.now().toString();
     const now = new Date().toISOString();
     
-    await client.query(`
+    await executeNonQuery(`
       INSERT INTO admins (id, username, password_hash, created_at)
       VALUES ($1, $2, $3, $4)
     `, [id, admin.username, admin.passwordHash, now]);
@@ -475,7 +471,7 @@ export async function initDatabase() {
   const client = getSql();
   
   // Check if admin exists
-  const admins = await client.query('SELECT COUNT(*) as count FROM admins');
+  const admins = await executeQuery<any>('SELECT COUNT(*) as count FROM admins');
   const adminCount = admins[0].count || 0;
   
   if (adminCount === 0) {
@@ -490,7 +486,7 @@ export async function initDatabase() {
     const id = Date.now().toString();
     const now = new Date().toISOString();
     
-    await client.query(`
+    await executeNonQuery(`
       INSERT INTO admins (id, username, password_hash, created_at)
       VALUES ($1, $2, $3, $4)
     `, [id, adminUsername, adminPasswordHash, now]);
