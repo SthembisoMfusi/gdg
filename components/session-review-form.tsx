@@ -59,7 +59,7 @@ export function SessionReviewForm({ sessionId, onSubmit }: SessionReviewFormProp
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 bg-[#f0f0f0]">
       <h3 className="text-lg font-semibold mb-4">Leave a Review</h3>
       {submitted ? (
         <div className="py-8 text-center">

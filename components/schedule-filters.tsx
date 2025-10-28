@@ -9,8 +9,8 @@ interface ScheduleFiltersProps {
 
 export function ScheduleFilters({ tracks, selectedTrack, onTrackChange }: ScheduleFiltersProps) {
   return (
-    <div className="border-b bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+    <div className="border-b bg-background ">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 ">
         <div className="flex items-center gap-2 overflow-x-auto">
           <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Filter by track:</span>
           <div className="flex gap-2">
@@ -18,6 +18,7 @@ export function ScheduleFilters({ tracks, selectedTrack, onTrackChange }: Schedu
               variant={selectedTrack === "All" ? "default" : "outline"}
               size="sm"
               onClick={() => onTrackChange("All")}
+              className={selectedTrack === "All" ? "bg-[#f7a900] hover:bg-[#e69a00] text-white" : ""}
             >
               All
             </Button>
@@ -27,6 +28,7 @@ export function ScheduleFilters({ tracks, selectedTrack, onTrackChange }: Schedu
                 variant={selectedTrack === track ? "default" : "outline"}
                 size="sm"
                 onClick={() => onTrackChange(track)}
+                className={selectedTrack === track ? "bg-[#f7a900] hover:bg-[#e69a00] text-white" : ""}
               >
                 {track}
               </Button>

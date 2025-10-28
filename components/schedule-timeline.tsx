@@ -23,11 +23,14 @@ export function ScheduleTimeline({ sessions }: ScheduleTimelineProps) {
     <div className="space-y-12">
       {Object.entries(timeSlots).map(([timeSlot, sessions]) => (
         <div key={timeSlot}>
-          <div className="mb-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">
+          <div className="mb-6 flex items-center gap-0">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#33a755] text-white font-bold">
               {timeSlot.split(" - ")[0]}
             </div>
             <div className="h-px flex-1 bg-border" />
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#33a755] text-white font-bold">
+              {timeSlot.split(" - ")[1]}
+            </div>
           </div>
           <div className="grid gap-6 md:grid-cols-2">
             {sessions.map((session) => (

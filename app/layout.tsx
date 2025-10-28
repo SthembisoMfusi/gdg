@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
-export const metadata: Metadata = {
-  title: "GDG DevFest 2025",
-  description: "Event schedule and speaker management for Google Developer Groups",
+// export const metadata: Metadata = {
+//   title: "GDG DevFest 2025",
+//   description: "Event schedule and speaker management for Google Developer Groups",
    
-}
+// }
 
 export default function RootLayout({
   children,

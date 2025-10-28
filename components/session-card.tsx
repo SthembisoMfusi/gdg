@@ -20,9 +20,9 @@ export function SessionCard({ session }: SessionCardProps) {
     : 0
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-lg">
+    <Card className="overflow-hidden transition-shadow hover:shadow-lg bg-[#f0f0f0]">
       <div className="p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4 flex-shrink-0" />
