@@ -13,10 +13,7 @@ if (!globalThis.WebSocket) {
   globalThis.WebSocket = ws as any;
 }
 
-const sql = neon(process.env.DATABASE_URL!, {
-  fetchConnectionCache: true,
-  maxConnectionPoolSize: 1
-});
+const sql = neon(process.env.DATABASE_URL!);
 
 interface Database {
   speakers: any[];
@@ -62,72 +59,110 @@ async function migrateSpeakers(data: Database) {
 }
 
 async function migrateSessions(data: Database) {
+  let count = 0;
   for (const session of data.sessions) {
-    await sql`
-      INSERT INTO sessions (id, title, description, start_time, end_time, track, tags, created_at, updated_at)
-      VALUES (${session.id}, ${session.title}, ${session.description}, ${session.startTime}, ${session.endTime}, ${session.track}, ${session.tags || []}, ${session.createdAt}, ${session.updatedAt})
-      ON CONFLICT (id) DO NOTHING
-    `;
-    
-    if (session.speakerIds && session.speakerIds.length > 0) {
-      for (const speakerId of session.speakerIds) {
-        await sql`
-          INSERT INTO session_speakers (session_id, speaker_id)
-          VALUES (${session.id}, ${speakerId})
-          ON CONFLICT DO NOTHING
-        `;
+    try {
+      await sql`
+        INSERT INTO sessions (id, title, description, start_time, end_time, track, tags, created_at, updated_at)
+        VALUES (${session.id}, ${session.title}, ${session.description}, ${session.startTime}, ${session.endTime}, ${session.track}, ${session.tags || []}, ${session.createdAt}, ${session.updatedAt})
+        ON CONFLICT (id) DO NOTHING
+      `;
+      
+      if (session.speakerIds && session.speakerIds.length > 0) {
+        for (const speakerId of session.speakerIds) {
+          await sql`
+            INSERT INTO session_speakers (session_id, speaker_id)
+            VALUES (${session.id}, ${speakerId})
+            ON CONFLICT DO NOTHING
+          `;
+        }
       }
+      count++;
+    } catch (error: any) {
+      console.error(`Error migrating session ${session.id}:`, error.message);
     }
   }
-  console.log(`✅ Migrated ${data.sessions.length} sessions`);
+  console.log(`✅ Migrated ${count}/${data.sessions.length} sessions`);
 }
 
 async function migrateEvents(data: Database) {
+  let count = 0;
   for (const event of data.events) {
-    await sql`
-      INSERT INTO events (id, name, description, date, location, image, created_at, updated_at)
-      VALUES (${event.id}, ${event.name}, ${event.description}, ${event.date}, ${event.location}, ${event.image}, ${event.createdAt}, ${event.updatedAt})
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        description = EXCLUDED.description,
-        date = EXCLUDED.date,
-        location = EXCLUDED.location,
-        image = EXCLUDED.image,
-        updated_at = EXCLUDED.updated_at
-    `;
+    try {
+      await sql`
+        INSERT INTO events (id, name, description, date, location, image, created_at, updated_at)
+        VALUES (${event.id}, ${event.name}, ${event.description}, ${event.date}, ${event.location}, ${event.image}, ${event.createdAt}, ${event.updatedAt})
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          date = EXCLUDED.date,
+          location = EXCLUDED.location,
+          image = EXCLUDED.image,
+          updated_at = EXCLUDED.updated_at
+      `;
+      count++;
+    } catch (error: any) {
+      console.error(`Error migrating event ${event.id}:`, error.message);
+    }
   }
-  console.log(`✅ Migrated ${data.events.length} events`);
+  console.log(`✅ Migrated ${count}/${data.events.length} events`);
 }
 
 async function migrateReviews(data: Database) {
+  let count = 0;
   for (const review of data.reviews) {
-    await sql`
-      INSERT INTO reviews (id, speaker_id, session_id, user_name, user_email, user_avatar, rating, comment, date, created_at)
-      VALUES (${review.id}, ${review.speakerId || null}, ${review.sessionId || null}, ${review.userName}, ${review.userEmail || null}, ${review.userAvatar}, ${review.rating}, ${review.comment}, ${review.date}, ${review.createdAt})
-      ON CONFLICT (id) DO NOTHING
-    `;
+    try {
+      await sql`
+        INSERT INTO reviews (id, speaker_id, session_id, user_name, user_email, user_avatar, rating, comment, date, created_at)
+        VALUES (${review.id}, ${review.speakerId || null}, ${review.sessionId || null}, ${review.userName}, ${review.userEmail || null}, ${review.userAvatar}, ${review.rating}, ${review.comment}, ${review.date}, ${review.createdAt})
+        ON CONFLICT (id) DO NOTHING
+      `;
+      count++;
+    } catch (error: any) {
+      console.error(`Error migrating review ${review.id}:`, error.message);
+    }
   }
-  console.log(`✅ Migrated ${data.reviews.length} reviews`);
+  console.log(`✅ Migrated ${count}/${data.reviews.length} reviews`);
 }
 
 async function migrateAdmins(data: Database) {
+  let count = 0;
   for (const admin of data.admins) {
-    await sql`
-      INSERT INTO admins (id, username, password_hash, created_at)
-      VALUES (${admin.id}, ${admin.username}, ${admin.passwordHash}, ${admin.createdAt})
-      ON CONFLICT (id) DO NOTHING
-    `;
+    try {
+      await sql`
+        INSERT INTO admins (id, username, password_hash, created_at)
+        VALUES (${admin.id}, ${admin.username}, ${admin.passwordHash}, ${admin.createdAt})
+        ON CONFLICT (id) DO NOTHING
+      `;
+      count++;
+    } catch (error: any) {
+      console.error(`Error migrating admin ${admin.id}:`, error.message);
+    }
   }
-  console.log(`✅ Migrated ${data.admins.length} admins`);
+  console.log(`✅ Migrated ${count}/${data.admins.length} admins`);
 }
 
 async function migrate() {
   console.log('🚀 Starting migration to Neon PostgreSQL...\n');
   
+  // Check for DATABASE_URL
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ Error: DATABASE_URL environment variable is not set!');
+    console.error('Please add DATABASE_URL to your .env.local file');
+    process.exit(1);
+  }
+  
   try {
     const dataPath = join(process.cwd(), 'data', 'gdg.json');
     const jsonData = await readFile(dataPath, 'utf-8');
     const data: Database = JSON.parse(jsonData);
+    
+    console.log('📊 Data to migrate:');
+    console.log(`   - ${data.speakers.length} speakers`);
+    console.log(`   - ${data.sessions.length} sessions`);
+    console.log(`   - ${data.events.length} events`);
+    console.log(`   - ${data.reviews.length} reviews`);
+    console.log(`   - ${data.admins.length} admins\n`);
     
     console.log('📋 Creating tables...');
     await createTables();
