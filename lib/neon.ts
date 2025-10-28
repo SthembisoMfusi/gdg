@@ -23,7 +23,12 @@ export function getSql() {
         'DATABASE_URL is not set. Please add your Neon connection string to environment variables.'
       );
     }
-    sqlClient = neon(process.env.DATABASE_URL);
+    // Configure Neon client with fetch options
+    sqlClient = neon(process.env.DATABASE_URL, {
+      fetchOptions: {
+        cache: 'no-store',
+      },
+    });
   }
   return sqlClient;
 }
@@ -51,34 +56,14 @@ export async function query<T = any>(text: string, params?: any[]): Promise<T[]>
   
   if (!params || params.length === 0) {
     // Execute query without parameters using sql.unsafe
-    const result = await (sql as any).unsafe(text);
+    // @ts-ignore - neon client signature  
+    const result = await sql.query(text, []);
     return result as T[];
   }
   
-  // Build query safely by replacing parameter placeholders with properly escaped values
-  let finalQuery = text;
-  params.forEach((param, index) => {
-    const paramIndex = index + 1;
-    const placeholder = new RegExp(`\\$${paramIndex}\\b`, 'g');
-    
-    if (param === null || param === undefined) {
-      finalQuery = finalQuery.replace(placeholder, 'NULL');
-    } else if (typeof param === 'string') {
-      // Escape single quotes for SQL
-      const escaped = param.replace(/'/g, "''");
-      finalQuery = finalQuery.replace(placeholder, `'${escaped}'`);
-    } else if (typeof param === 'number' || typeof param === 'boolean') {
-      finalQuery = finalQuery.replace(placeholder, String(param));
-    } else if (Array.isArray(param)) {
-      // Handle array parameters (for tags, etc.)
-      const arrayStr = param.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
-      finalQuery = finalQuery.replace(placeholder, `ARRAY[${arrayStr}]`);
-    } else {
-      finalQuery = finalQuery.replace(placeholder, `'${String(param).replace(/'/g, "''")}'`);
-    }
-  });
-  
-  const result = await (sql as any).unsafe(finalQuery);
+  // Execute query with parameters using sql.query
+  // @ts-ignore - neon client signature
+  const result = await sql.query(text, params);
   return result as T[];
 }
 
