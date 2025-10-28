@@ -34,12 +34,11 @@ export function getSql() {
  */
 export async function execute(sqlText: string, params?: any[]): Promise<any[]> {
   const sql = getSql();
-  // Use template literal syntax for Neon
-  // Convert params to a format the API understands
+  // Use sql.unsafe for executing raw SQL
   if (params && params.length > 0) {
-    return sql`${sqlText}` as any;
+    return (sql as any).unsafe(sqlText);
   } else {
-    return sql(sqlText);
+    return (sql as any).unsafe(sqlText);
   }
 }
 
@@ -51,8 +50,8 @@ export async function query<T = any>(text: string, params?: any[]): Promise<T[]>
   const sql = getSql();
   
   if (!params || params.length === 0) {
-    // Execute query without parameters
-    const result = await sql(text);
+    // Execute query without parameters using sql.unsafe
+    const result = await (sql as any).unsafe(text);
     return result as T[];
   }
   
@@ -79,7 +78,7 @@ export async function query<T = any>(text: string, params?: any[]): Promise<T[]>
     }
   });
   
-  const result = await sql(finalQuery);
+  const result = await (sql as any).unsafe(finalQuery);
   return result as T[];
 }
 
