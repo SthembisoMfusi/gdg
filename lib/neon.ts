@@ -45,13 +45,41 @@ export async function execute(sqlText: string, params?: any[]): Promise<any[]> {
 
 /**
  * Execute a query and return results
- * Handles queries with parameters
+ * Handles queries with parameters - properly escapes values to prevent SQL injection
  */
 export async function query<T = any>(text: string, params?: any[]): Promise<T[]> {
   const sql = getSql();
-  const result = await sql(text, params);
   
-  // Neon returns results as an array
+  if (!params || params.length === 0) {
+    // Execute query without parameters
+    const result = await sql(text);
+    return result as T[];
+  }
+  
+  // Build query safely by replacing parameter placeholders with properly escaped values
+  let finalQuery = text;
+  params.forEach((param, index) => {
+    const paramIndex = index + 1;
+    const placeholder = new RegExp(`\\$${paramIndex}\\b`, 'g');
+    
+    if (param === null || param === undefined) {
+      finalQuery = finalQuery.replace(placeholder, 'NULL');
+    } else if (typeof param === 'string') {
+      // Escape single quotes for SQL
+      const escaped = param.replace(/'/g, "''");
+      finalQuery = finalQuery.replace(placeholder, `'${escaped}'`);
+    } else if (typeof param === 'number' || typeof param === 'boolean') {
+      finalQuery = finalQuery.replace(placeholder, String(param));
+    } else if (Array.isArray(param)) {
+      // Handle array parameters (for tags, etc.)
+      const arrayStr = param.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+      finalQuery = finalQuery.replace(placeholder, `ARRAY[${arrayStr}]`);
+    } else {
+      finalQuery = finalQuery.replace(placeholder, `'${String(param).replace(/'/g, "''")}'`);
+    }
+  });
+  
+  const result = await sql(finalQuery);
   return result as T[];
 }
 
